@@ -8,8 +8,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 9016 $
+#  $Id: XKoreProxy.pm 9016 2016-02-15 16:45:35Z windhamwong $
 #
 #########################################################################
 # Note: the difference between XKore2 and XKoreProxy is that XKore2 can

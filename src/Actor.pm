@@ -9,8 +9,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 8814 $
+#  $Id: Actor.pm 8814 2014-01-13 21:05:57Z marcelofoxes $
 #
 #########################################################################
 ##

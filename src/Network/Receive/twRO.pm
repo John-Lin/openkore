@@ -18,7 +18,7 @@ use Time::HiRes;
 
 use Globals;
 use base qw(Network::Receive::ServerType0);
-use Log qw(message debug);
+use Log qw(message debug warning);
 use Network::MessageTokenizer;
 use Misc;
 use Utils;
@@ -34,11 +34,120 @@ sub new {
 		'099B' => ['map_property3', 'v a4', [qw(type info_table)]],
 		'099F' => ['area_spell_multiple2', 'v a*', [qw(len spellInfo)]], # -1
 		'0A3B' => ['misc_effect', 'v a4 C v', [qw(len ID flag effect)]],
+		'0A0C' => ['inventory_item_added', 'v3 C3 a8 V C2 V v', [qw(index amount nameID identified broken upgrade cards type_equip type fail expire bindOnEquipType)]],#31
+		'0991' => ['inventory_items_stackable', 'v a*', [qw(len itemInfo)]],#-1
+		'0A0D' => ['inventory_items_nonstackable', 'v a*', [qw(len itemInfo)]],#-1
+		'0A0A' => ['storage_item_added', 'v V v C4 a8', [qw(index amount nameID type identified broken upgrade cards)]],
+		'0A0B' => ['cart_item_added', 'v V v C x26 C2 a8', [qw(index amount nameID identified broken upgrade cards)]],
+		'0993' => ['cart_items_stackable', 'v a*', [qw(len itemInfo)]],#-1
+		'0A0F' => ['cart_items_nonstackable', 'v a*', [qw(len itemInfo)]],#-1
+		'0995' => ['storage_items_stackable', 'v Z24 a*', [qw(len title itemInfo)]],#-1
+		'0A10' => ['storage_items_nonstackable', 'v Z24 a*', [qw(len title itemInfo)]],#-1
+		'0202' => ['sync_request_ex'],
+		'022D' => ['sync_request_ex'],
+		'023B' => ['sync_request_ex'],
+		'02C4' => ['sync_request_ex'],
+		'0361' => ['sync_request_ex'],
+		'0363' => ['sync_request_ex'],
+		'07E4' => ['sync_request_ex'],
+		'085A' => ['sync_request_ex'],
+		'085B' => ['sync_request_ex'],
+		'085C' => ['sync_request_ex'],
+		'085D' => ['sync_request_ex'],
+		'085E' => ['sync_request_ex'],
+		'085F' => ['sync_request_ex'],
+		'0860' => ['sync_request_ex'],
+		'0861' => ['sync_request_ex'],
+		'0862' => ['sync_request_ex'],
+		'0864' => ['sync_request_ex'],
+		'0865' => ['sync_request_ex'],
+		'0866' => ['sync_request_ex'],
+		'0867' => ['sync_request_ex'],
+		'0868' => ['sync_request_ex'],
+		'086A' => ['sync_request_ex'],
+		'086B' => ['sync_request_ex'],
+		'086C' => ['sync_request_ex'],
+		'086D' => ['sync_request_ex'],
+		'086F' => ['sync_request_ex'],
+		'0870' => ['sync_request_ex'],
+		'0871' => ['sync_request_ex'],
+		'0872' => ['sync_request_ex'],
+		'0873' => ['sync_request_ex'],
+		'0874' => ['sync_request_ex'],
+		'0875' => ['sync_request_ex'],
+		'0876' => ['sync_request_ex'],
+		'0877' => ['sync_request_ex'],
+		'0878' => ['sync_request_ex'],
+		'0879' => ['sync_request_ex'],
+		'087A' => ['sync_request_ex'],
+		'087B' => ['sync_request_ex'],
+		'087C' => ['sync_request_ex'],
+		'087D' => ['sync_request_ex'],
+		'087F' => ['sync_request_ex'],
+		'0881' => ['sync_request_ex'],
+		'0882' => ['sync_request_ex'],
+		'0883' => ['sync_request_ex'],
+		'0886' => ['sync_request_ex'],
+		'0917' => ['sync_request_ex'],
+		'0918' => ['sync_request_ex'],
+		'0919' => ['sync_request_ex'],
+		'091A' => ['sync_request_ex'],
+		'091B' => ['sync_request_ex'],
+		'091C' => ['sync_request_ex'],
+		'091D' => ['sync_request_ex'],
+		'091E' => ['sync_request_ex'],
+		'091F' => ['sync_request_ex'],
+		'0920' => ['sync_request_ex'],
+		'0921' => ['sync_request_ex'],
+		'0922' => ['sync_request_ex'],
+		'0923' => ['sync_request_ex'],
+		'0924' => ['sync_request_ex'],
+		'0925' => ['sync_request_ex'],
+		'0926' => ['sync_request_ex'],
+		'0927' => ['sync_request_ex'],
+		'0928' => ['sync_request_ex'],
+		'0929' => ['sync_request_ex'],
+		'092A' => ['sync_request_ex'],
+		'092B' => ['sync_request_ex'],
+		'092C' => ['sync_request_ex'],
+		'092D' => ['sync_request_ex'],
+		'092E' => ['sync_request_ex'],
+		'092F' => ['sync_request_ex'],
+		'0930' => ['sync_request_ex'],
+		'0931' => ['sync_request_ex'],
+		'0932' => ['sync_request_ex'],
+		'0934' => ['sync_request_ex'],
+		'0935' => ['sync_request_ex'],
+		'0936' => ['sync_request_ex'],
+		'0937' => ['sync_request_ex'],
+		'0938' => ['sync_request_ex'],
+		'0939' => ['sync_request_ex'],
+		'093B' => ['sync_request_ex'],
+		'093C' => ['sync_request_ex'],
+		'093D' => ['sync_request_ex'],
+		'093E' => ['sync_request_ex'],
+		'093F' => ['sync_request_ex']
 	);
 
 	foreach my $switch (keys %packets) {
 		$self->{packet_list}{$switch} = $packets{$switch};
 	}
+	$self->{nested} = {
+		items_nonstackable => { # EQUIPMENTITEM_EXTRAINFO
+			type6 => {
+				len => 57,
+				types => 'v2 C V2 C a8 l v2 x26 C',
+				keys => [qw(index nameID type type_equip equipped upgrade cards expire bindOnEquipType sprite_id flag)],
+			},
+		},
+		items_stackable => { # ITEMLIST_NORMAL_ITEM
+			type6 => {
+				len => 24,
+				types => 'v2 C v V a8 l C',
+				keys => [qw(index nameID type amount type_equip cards expire flag)],
+			},
+		},
+	};
 
 	my %handlers = qw(
 		actor_moved 0856
@@ -48,7 +157,93 @@ sub new {
 		received_characters 099D
 	);
 	$self->{packet_lut}{$_} = $handlers{$_} for keys %handlers;
-
+	
+	$self->{sync_ex_reply} = {
+		'0202' => '095D',
+		'022D' => '08A8',
+		'023B' => '0A5C',
+		'02C4' => '0893',
+		'0361' => '035F',
+		'0363' => '088D',
+		'07E4' => '0964',
+		'085A' => '0869',
+		'085B' => '0880',
+		'085C' => '0436',
+		'085D' => '095C',
+		'085E' => '0888',
+		'085F' => '0889',
+		'0860' => '088A',
+		'0861' => '088B',
+		'0862' => '088C',
+		'0864' => '0887',
+		'0865' => '0362',
+		'0866' => '0890',
+		'0867' => '0891',
+		'0868' => '0892',
+		'086A' => '0894',
+		'086B' => '0895',
+		'086C' => '0896',
+		'086D' => '0897',
+		'086F' => '0899',
+		'0870' => '089A',
+		'0871' => '089B',
+		'0872' => '089C',
+		'0873' => '0364',
+		'0874' => '089E',
+		'0875' => '089F',
+		'0876' => '08A0',
+		'0877' => '08A1',
+		'0878' => '08A2',
+		'0879' => '08A3',
+		'087A' => '08A4',
+		'087B' => '08A5',
+		'087C' => '08A6',
+		'087D' => '08A7',
+		'087F' => '08A9',
+		'0881' => '08AB',
+		'0882' => '08AC',
+		'0883' => '08AD',
+		'0886' => '08AA',
+		'0917' => '0941',
+		'0918' => '0942',
+		'0919' => '0802',
+		'091A' => '0944',
+		'091B' => '0945',
+		'091C' => '0946',
+		'091D' => '0947',
+		'091E' => '0948',
+		'091F' => '0949',
+		'0920' => '094A',
+		'0921' => '0365',
+		'0922' => '094C',
+		'0923' => '094D',
+		'0924' => '094E',
+		'0925' => '094F',
+		'0926' => '0950',
+		'0927' => '0951',
+		'0928' => '0952',
+		'0929' => '0953',
+		'092A' => '0954',
+		'092B' => '0955',
+		'092C' => '07EC',
+		'092D' => '0957',
+		'092E' => '0958',
+		'092F' => '0959',
+		'0930' => '095A',
+		'0931' => '0940',
+		'0932' => '095B',
+		'0934' => '095E',
+		'0935' => '095F',
+		'0936' => '0960',
+		'0937' => '0961',
+		'0938' => '0962',
+		'0939' => '0963',
+		'093B' => '0965',
+		'093C' => '0966',
+		'093D' => '0967',
+		'093E' => '0968',
+		'093F' => '0969'
+	};
 	return $self;
 }
 
@@ -79,5 +274,132 @@ sub received_characters_info {
 	$charSvrSet{valid_slot} = $args->{valid_slot} if (exists $args->{valid_slot});
 
 	$timeout{charlogin}{time} = time;
+}
+sub items_nonstackable {
+	my ($self, $args) = @_;
+
+	my $items = $self->{nested}->{items_nonstackable};
+
+	if ($args->{switch} eq '0A0D' ||# inventory
+		$args->{switch} eq '0A0F' ||# cart
+		$args->{switch} eq '0A10'	# storage
+	) {
+		return $items->{type6};
+	} else {
+		warning "items_nonstackable: unsupported packet ($args->{switch})!\n";
+	}
+}
+
+sub items_stackable {
+	my ($self, $args) = @_;
+
+	my $items = $self->{nested}->{items_stackable};
+
+	if ($args->{switch} eq '0991' ||# inventory
+		$args->{switch} eq '0993' ||# cart
+		$args->{switch} eq '0995'	# storage
+	) {
+		return $items->{type6};
+
+	} else {
+		warning "items_stackable: unsupported packet ($args->{switch})!\n";
+	}
+}
+sub parse_items_nonstackable {
+	my ($self, $args) = @_;
+	$self->parse_items($args, $self->items_nonstackable($args), sub {
+		my ($item) = @_;
+		$item->{amount} = 1 unless ($item->{amount});
+#message "1 nameID = $item->{nameID}, flag = $item->{flag} >> ";
+		if ($item->{flag} == 0) {
+			$item->{broken} = $item->{identified} = 0;
+		} elsif ($item->{flag} == 1 || $item->{flag} == 5) {
+			$item->{broken} = 0;
+			$item->{identified} = 1;
+		} elsif ($item->{flag} == 3 || $item->{flag} == 7) {
+			$item->{broken} = $item->{identified} = 1;
+		} else {
+			message T ("Warning: unknown flag!\n");
+		}
+#message "2 broken = $item->{broken}, identified = $item->{identified}\n";
+	})
+}
+
+sub parse_items_stackable {
+	my ($self, $args) = @_;
+	$self->parse_items($args, $self->items_stackable($args), sub {
+		my ($item) = @_;
+		$item->{idenfitied} = $item->{identified} & (1 << 0);
+		if ($item->{flag} == 0) {
+			$item->{identified} = 0;
+		} elsif ($item->{flag} == 1 || $item->{flag} == 3) {
+			$item->{identified} = 1;
+		} else {
+			message T ("Warning: unknown flag!\n");
+		}
+	})
+}
+sub sell_result {
+	my ($self, $args) = @_;
+
+	$self->SUPER::sell_result($args);
+
+	# The server won't let us move until we send the sell complete packet.
+	$self->sendSellComplete;
+}
+
+sub buy_result {
+	my ($self, $args) = @_;
+
+	$self->SUPER::buy_result($args);
+
+	# The server won't let us move until we send the sell complete packet.
+	$self->sendSellComplete;
+}
+
+sub sendSellComplete {
+	my ($self) = @_;
+	$messageSender->sendToServer(pack 'C*', 0xD4, 0x09);
+}
+
+sub vending_start {
+	my ($self, $args) = @_;
+
+	my $msg = $args->{RAW_MSG};
+	my $msg_size = unpack("v1",substr($msg, 2, 2));
+
+	#started a shop.
+	message TF("Shop '%s' opened!\n", $shop{title}), "success";
+	@articles = ();
+	# FIXME: why do we need a seperate variable to track how many items are left in the store?
+	$articles = 0;
+
+	# FIXME: Read the packet the server sends us to determine
+	# the shop title instead of using $shop{title}.
+	my $display = center(" $shop{title} ", 79, '-') . "\n" .
+		T("#  Name                                       Type        Amount          Price\n");
+	for (my $i = 8; $i < $msg_size; $i += 47) {
+		my $number = unpack("v1", substr($msg, $i + 4, 2));
+		my $item = $articles[$number] = {};
+		$item->{nameID} = unpack("v1", substr($msg, $i + 9, 2));
+		$item->{quantity} = unpack("v1", substr($msg, $i + 6, 2));
+		$item->{type} = unpack("C1", substr($msg, $i + 8, 1));
+		$item->{identified} = unpack("C1", substr($msg, $i + 11, 1));
+		$item->{broken} = unpack("C1", substr($msg, $i + 12, 1));
+		$item->{upgrade} = unpack("C1", substr($msg, $i + 13, 1));
+		$item->{cards} = substr($msg, $i + 14, 8);
+		$item->{price} = unpack("V1", substr($msg, $i, 4));
+		$item->{name} = itemName($item);
+		$articles++;
+
+		debug ("Item added to Vender Store: $item->{name} - $item->{price} z\n", "vending", 2);
+
+		$display .= swrite(
+			"@< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<< @>>>>> @>>>>>>>>>>>>z",
+			[$articles, $item->{name}, $itemTypes_lut{$item->{type}}, formatNumber($item->{quantity}), formatNumber($item->{price})]);
+	}
+	$display .= ('-'x79) . "\n";
+	message $display, "list";
+	$shopEarned ||= 0;
 }
 1;

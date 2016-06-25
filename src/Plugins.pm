@@ -8,8 +8,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 9031 $
+#  $Id: Plugins.pm 9031 2016-02-27 18:35:25Z allanon $
 #
 #########################################################################
 ##

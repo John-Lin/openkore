@@ -8,8 +8,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 9027 $
+#  $Id: Misc.pm 9027 2016-02-21 20:15:45Z ya4ept $
 #
 #########################################################################
 ##

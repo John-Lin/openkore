@@ -35,7 +35,6 @@ package Utils::TextReader;
 
 use strict;
 use Encode;
-use Translation qw( T TF );
 use Utils::Exceptions;
 
 my $supportsAutoConversion;
@@ -53,42 +52,21 @@ eval {
 # Create a new TextReader and open the given file for reading.
 sub new {
 	my ($class, $file) = @_;
+	my %self;
 
-	my $self = bless {}, $class;
-	$self->{files} = [];
-	$self->add( $file );
+	if (! -e $file) {
+		FileNotFoundException->throw("File does not exist.");
+	} elsif (!open($self{handle}, "<", $file)) {
+		IOException->throw(error => $!);
+	}
+	$self{file} = $file;
+	$self{line} = 1;
 
-	$self;
+	return bless \%self, $class;
 }
 
 sub DESTROY {
-	close $_->{handle} foreach @{ $_[0]->{files} };
-}
-
-##
-# void $TextReader->add($file)
-# Throws: FileNotFoundException, IOException
-#
-# Add a file to the list of files to be processed. Files are processed in a LIFO manner.
-sub add {
-	my ( $self, $file, $options ) = @_;
-
-	if ( grep { $_->{file} eq $file } @{ $self->{files} } ) {
-		IOException->throw( TF( 'File [%s] cannot include itself.', $file ) );
-	}
-
-	my $handle;
-	if (! -e $file && $options->{create_if_missing}) {
-		if (!open($handle, '>', $file)) {
-			IOException->throw( TF( 'File [%s] cannot be created: $!', $file, $! ) );
-		}
-	} elsif (! -e $file) {
-		FileNotFoundException->throw( TF( 'File [%s] does not exist.', $file ) );
-	} elsif (!open($handle, "<", $file)) {
-		IOException->throw(error => $!);
-	}
-
-	push @{ $self->{files} }, { file => $file, line => 0, handle => $handle };
+	close($_[0]->{handle});
 }
 
 ##
@@ -96,9 +74,7 @@ sub add {
 #
 # Check whether end-of-file has been reached.
 sub eof {
-	my $self = shift;
-	pop @{ $self->{files} } while @{ $self->{files} } && eof $self->{files}->[-1]->{handle};
-	!@{ $self->{files} };
+	return eof($_[0]->{handle});
 }
 
 ##
@@ -110,13 +86,8 @@ sub eof {
 # UTF-8 BOM characters are automatically stripped.
 sub readLine {
 	my $self = $_[0];
-
-	return if $self->eof;
-
-	# Attempt to read a line from the current file.
-	my $handle = $self->{files}->[-1]->{handle};
+	my $handle = $self->{handle};
 	my $line = <$handle>;
-	$self->{files}->[-1]->{line}++;
 
 	# Validate UTF-8.
 	{
@@ -139,9 +110,9 @@ sub readLine {
 			}
 			if (!$supportsAutoConversion || $@) {
 				UTF8MalformedException->throw(
-					error => "Malformed UTF-8 data at line $self->{files}->[-1]->{line}.",
-					textfileline => $self->{files}->[-1]->{line},
-					textfile => $self->{files}->[-1]->{file},
+					error => "Malformed UTF-8 data at line $_[0]->{line}.",
+					textfileline => $self->{line},
+					textfile => $self->{file}
 				);
 			}
 		}
@@ -151,22 +122,7 @@ sub readLine {
 	Encode::_utf8_on($line);
 	$line =~ s/\x{FEFF}//g;
 
-	# Handle "!include".
-	if ( $line =~ /^\s*!include\s+(.*?)\s*$/os ) {
-		my $file = $1;
-		my ( $vol, $dir ) = File::Spec->splitpath( $self->{files}->[-1]->{file} );
-		$file = File::Spec->catpath( $vol, $dir, $file );
-		$self->add( $file );
-		$line = $self->readLine;
-	}
-	if ( $line =~ /^\s*!include_create_if_missing\s+(.*?)\s*$/os ) {
-		my $file = $1;
-		my ( $vol, $dir ) = File::Spec->splitpath( $self->{files}->[-1]->{file} );
-		$file = File::Spec->catpath( $vol, $dir, $file );
-		$self->add( $file, { create_if_missing => 1 } );
-		$line = $self->readLine;
-	}
-
+	$self->{line}++;
 	return $line;
 }
 

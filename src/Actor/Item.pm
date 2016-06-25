@@ -9,8 +9,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 8894 $
+#  $Id: Item.pm 8894 2014-08-21 16:47:22Z allanon $
 #
 #########################################################################
 ##

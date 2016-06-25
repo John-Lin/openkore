@@ -28,37 +28,58 @@ sub new {
 	$self->{char_create_version} = 1;
 
 	my %packets = (
+		'0933' => ['friend_request', 'a*', [qw(username)]],
+		'0885' => ['party_join_request_by_name', 'Z24', [qw(partyName)]],
+		'0A5A' => ['actor_look_at', 'v C', [qw(head body)]],
+		'0863' => ['item_drop', 'v2', [qw(index amount)]],
+		'089D' => ['storage_item_add', 'v V', [qw(index amount)]],
+		'094B' => ['storage_item_remove', 'v V', [qw(index amount)]],
+		'0281' => ['storage_password'],
+		'087E' => ['homunculus_command', 'v C', [qw(commandType, commandID)]],
+		'0884' => ['sync', 'V', [qw(time)]],
+		'088F' => ['item_take', 'a4', [qw(ID)]],
+		'0A68' => ['skill_use', 'v2 a4', [qw(lv skillID targetID)]],
+		'0438' => ['skill_use_location', 'v4', [qw(lv skillID x y)]],
+		'0369' => ['actor_action', 'a4 C', [qw(targetID type)]],
+		'096A' => ['actor_info_request', 'a4', [qw(ID)]],
+		'0368' => ['actor_name_request', 'a4', [qw(ID)]],
+		'0437' => ['character_move','a3', [qw(coords)]],
+		'088E' => ['map_login', 'a4 a4 a4 V C', [qw(accountID charID sessionID tick sex)]],
 		'0970' => ['char_create', 'a24 C v2', [qw(name, slot, hair_style, hair_color)]],
+		'0064' => ['master_login', 'V Z24 a24 C', [qw(version username password_rijndael master_version)]],
 		);
+	$self->{packet_list}{$_} = $packets{$_} for keys %packets;
 
-	foreach my $switch (keys %packets) {
-		$self->{packet_list}{$switch} = $packets{$switch};
-	}
+	
 	my %handlers = qw(
-		character_move 035F
-		sync 0360
-		actor_look_at 0361
-		item_take 0362
-		item_drop 0363
-		storage_item_add 0364
-		storage_item_remove 0365
-		storage_item_add 09E1
-		storage_item_remove 09E2
-		skill_use_location 0366
-		actor_info_request 0368
-		actor_name_request 0369
+		friend_request 0933
+		party_join_request_by_name 0885
+		actor_look_at 0A5A
+		item_drop 0863
+		storage_item_add 089D
+		storage_item_remove 094B
+		storage_password 0281
+		homunculus_command 087E
+		sync 0884
+		item_take 088F
+		skill_use 0A68
+		skill_use_location 0438
+		actor_action 0369
+		actor_info_request 096A
+		actor_name_request 0368
+		character_move 0437
+		map_login 088E
+		char_create 0970
 		party_setting 07D7
 		buy_bulk_vender 0801
-		char_create 0970
-		storage_password 023B
 		send_equip 0998
 	);
+
 	$self->{packet_lut}{$_} = $handlers{$_} for keys %handlers;
+	$self->cryptKeys(0x6DF05E78, 0x7799393A, 0x48376267);
 
 	return $self;
 }
-
-# 0x0970,31
 sub sendCharCreate {
 	my ($self, $slot, $name, $hair_style, $hair_color) = @_;
 

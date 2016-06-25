@@ -8,8 +8,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 8964 $
+#  $Id: XKore.pm 8964 2015-03-23 18:58:18Z ya4ept $
 #
 #########################################################################
 package Network::XKore;

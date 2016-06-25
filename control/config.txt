@@ -1899,10 +1899,10 @@ dcOnPlayer 0
 # 註：假如是掛見不得人的地圖的話，例如：未開放地圖，PVP 夢靨模式。
 
 dcOnLevel 0
-# 基本等級升級時是否要斷線結速
+# 基本等級升級時是否要斷線結束
 
 dcOnJobLevel 0
-# 技能等級升級時是否要斷線結速
+# 技能等級升級時是否要斷線結束
 
 dcOnServerShutDown 0
 dcOnServerClose 0

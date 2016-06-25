@@ -9,8 +9,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 8930 $
+#  $Id: You.pm 8930 2014-12-10 02:01:06Z windhamwong $
 #
 #########################################################################
 ##

@@ -548,15 +548,10 @@ sub new {
 		'0999' => ['equip_item', 'v V v C', [qw(index type viewID success)]], #11
 		'099A' => ['unequip_item', 'v V C', [qw(index type success)]],#9
 		'099B' => ['map_property3', 'v a4', [qw(type info_table)]],
-		'09D2' => ['storage_items_stackable', 'v Z24 a*', [qw(len title itemInfo)]],
-		'09D3' => ['storage_items_nonstackable', 'v Z24 a*', [qw(len title itemInfo)]],
 		'099D' => ['received_characters', 'v a*', [qw(len charInfo)]],
 		'099F' => ['area_spell_multiple2', 'v a*', [qw(len spellInfo)]], # -1
 		'09A0' => ['sync_received_characters', 'V', [qw(sync_Count)]],
-		'09BB' => ['storage_opened', 'v2', [qw(items items_max)]],
 		'09CA' => ['area_spell_multiple3', 'v a*', [qw(len spellInfo)]], # -1
-		'09BD' => ['storage_item_removed', 'v V', [qw(index amount)]],
-		'09BF' => ['storage_closed'],
 		'09CD' => ['message_string', 'v V', [qw(msg_id para1)]], #8
 		'09CF' => ['gameguard_request'],
 		'0A27' => ['hp_sp_changed', 'v2', [qw(type amount)]],
@@ -963,8 +958,6 @@ sub items_nonstackable {
 	} elsif ($args->{switch} eq '0992' # inventory
 		|| $args->{switch} eq '0994' # cart
 		|| $args->{switch} eq '0996' # storage
-		|| $args->{switch} eq '09D3' # guild storage
-		|| $args->{switch} eq '001E' # guild storage
 		|| $args->{switch} eq '0997' # other player
 	) {
 		return $items->{type6};
@@ -1006,8 +999,6 @@ sub items_stackable {
 	} elsif ($args->{switch} eq '0991' # inventory
 		|| $args->{switch} eq '0993' # cart
 		|| $args->{switch} eq '0995' # storage
-		|| $args->{switch} eq '09D2' # guild storage
-		|| $args->{switch} eq '0009' # guild storage
 	) {
 		return $items->{type6};
 	} else {
@@ -4439,7 +4430,7 @@ sub received_characters {
 	## Note to devs: If other official servers support > 3 characters, then
 	## you should add these other serverTypes to the list compared here:
 	if (($args->{switch} eq '099D') && 
-		(grep { $masterServer->{serverType} eq $_ } qw( twRO iRO idRO ))
+		($masterServer->{serverType} ~~ ['twRO', 'iRO'])
 	) {
 		$net->setState(1.5);
 		if ($charSvrSet{sync_CountDown} && $config{'XKore'} ne '1') {
@@ -6100,7 +6091,7 @@ sub vender_items_list {
 	my $player = Actor::get($venderID);
 
 	message TF("%s\n" .
-		"#   Name                                      Type        Amount          Price\n",
+		"#   Name                                      Type           Amount       Price\n",
 		center(' Vender: ' . $player->nameIdx . ' ', 79, '-')), ($config{showDomain_Shop}?$config{showDomain_Shop}:"list");
 	for (my $i = $headerlen; $i < $args->{RAW_MSG_SIZE}; $i+=22) {
 		my $item = {};
@@ -6134,8 +6125,8 @@ sub vender_items_list {
 		});
 
 		message(swrite(
-			"@<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<< @>>>>> @>>>>>>>>>>>>z",
-			[$index, $item->{name}, $itemTypes_lut{$item->{type}}, formatNumber($item->{amount}), formatNumber($item->{price})]),
+			"@<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<< @>>>>> @>>>>>>>>>z",
+			[$index, $item->{name}, $itemTypes_lut{$item->{type}}, $item->{amount}, formatNumber($item->{price})]),
 			($config{showDomain_Shop}?$config{showDomain_Shop}:"list"));
 	}
 	message("-------------------------------------------------------------------------------\n", ($config{showDomain_Shop}?$config{showDomain_Shop}:"list"));
@@ -6184,7 +6175,7 @@ sub vending_start {
 	# FIXME: Read the packet the server sends us to determine
 	# the shop title instead of using $shop{title}.
 	my $display = center(" $shop{title} ", 79, '-') . "\n" .
-		T("#  Name                                       Type        Amount          Price\n");
+		T("#  Name                                   Type            Amount          Price\n");
 	for (my $i = 8; $i < $msg_size; $i += 22) {
 		my $number = unpack("v1", substr($msg, $i + 4, 2));
 		my $item = $articles[$number] = {};
@@ -6202,8 +6193,8 @@ sub vending_start {
 		debug ("Item added to Vender Store: $item->{name} - $item->{price} z\n", "vending", 2);
 
 		$display .= swrite(
-			"@< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<< @>>>>> @>>>>>>>>>>>>z",
-			[$articles, $item->{name}, $itemTypes_lut{$item->{type}}, formatNumber($item->{quantity}), formatNumber($item->{price})]);
+			"@< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<<<  @>>>>  @>>>>>>>>>>>z",
+			[$articles, $item->{name}, $itemTypes_lut{$item->{type}}, $item->{quantity}, formatNumber($item->{price})]);
 	}
 	$display .= ('-'x79) . "\n";
 	message $display, "list";
@@ -7237,7 +7228,7 @@ sub buying_store_items_list {
 	my $index = 0;
 
 	my $msg = center(T(" Buyer: ") . $player->nameIdx . ' ', 79, '-') ."\n".
-		T("#   Name                                      Type        Amount          Price\n");
+		T("#   Name                                      Type           Amount       Price\n");
 
 	for (my $i = $headerlen; $i < $args->{RAW_MSG_SIZE}; $i+=9) {
 		my $item = {};
@@ -7262,8 +7253,8 @@ sub buying_store_items_list {
 		});
 
 		$msg .= swrite(
-			"@<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<< @>>>>> @>>>>>>>>>>>>z",
-			[$index, $item->{name}, $itemTypes_lut{$item->{type}}, formatNumber($item->{amount}), formatNumber($item->{price})]);
+			"@<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<< @>>>>> @>>>>>>>>>z",
+			[$index, $item->{name}, $itemTypes_lut{$item->{type}}, $item->{amount}, formatNumber($item->{price})]);
 
 		$index++;
 	}

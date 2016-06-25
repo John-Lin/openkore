@@ -15,8 +15,8 @@
 #  GNU General Public License for more details.
 #
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 9016 $
+#  $Id: Console.pm 9016 2016-02-15 16:45:35Z windhamwong $
 #
 #########################################################################
 ##

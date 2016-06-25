@@ -16,8 +16,8 @@
 #  GNU General Public License for more details.
 #
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 8936 $
+#  $Id: Curses.pm 8936 2014-12-22 00:54:20Z allanon $
 #
 #########################################################################
 package Interface::Console::Curses;

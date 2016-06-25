@@ -9,8 +9,8 @@
 #  also distribute the source code.
 #  See http://www.gnu.org/licenses/gpl.html for the full license.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 9031 $
+#  $Id: Settings.pm 9031 2016-02-27 18:35:25Z allanon $
 #
 #########################################################################
 ##
@@ -54,7 +54,6 @@ use File::Spec;
 use Translation qw(T TF);
 use Utils::ObjectList;
 use Utils::Exceptions;
-use List::MoreUtils qw( uniq );
 
 use enum qw(CONTROL_FILE_TYPE TABLE_FILE_TYPE);
 
@@ -80,7 +79,7 @@ our $VERSION = 'what-will-become-2.1';
 #our $SVN = T(" (SVN Version) ");
 our $WEBSITE = 'http://www.openkore.com/';
 # Translation Comment: Version String
-our $versionText = "*** $NAME ${VERSION} ( version " . (getGitRevision() || '?') . ' ) - ' . T("Custom Ragnarok Online client") . " ***\n***   $WEBSITE   ***\n";
+our $versionText = "*** $NAME ${VERSION} ( r" . (getSVNRevision() || '?') . ' ) - ' . T("Custom Ragnarok Online client") . " ***\n***   $WEBSITE   ***\n";
 our $welcomeText = TF("Welcome to %s.", $NAME);
 
 
@@ -158,9 +157,9 @@ sub parseArguments {
 	undef $interface;
 	undef $lockdown;
 
-	# Allow plugins to have their own command line options.
-	Getopt::Long::Configure( 'pass_through' );
-
+	local $SIG{__WARN__} = sub {
+		ArgumentException->throw($_[0]);
+	};
 	GetOptions(
 		'control=s',          \$options{control},
 		'tables=s',           \$options{tables},
@@ -180,7 +179,6 @@ sub parseArguments {
 		'interface=s',        \$interface,
 		'lockdown',           \$lockdown,
 		'help',	              \$options{help},
-		'version|v',          \$options{version},
 
 		'no-connect',         \$no_connect
 	);
@@ -219,7 +217,6 @@ sub parseArguments {
 	}
 
 	return 0 if ($options{help});
-	return 0 if ($options{version});
 	if (! -d $logs_folder) {
 		#if (!mkdir($logs_folder)) {
 		if (! make_path($logs_folder)) {
@@ -287,22 +284,10 @@ sub getUsageText {
 		--interface=NAME          Which interface to use at startup.
 		--lockdown                Disable potentially insecure features.
 		--help                    Displays this help message.
-		--version                 Displays the program version.
 
 		Developer options:
 		--no-connect              Do not connect to any servers.
 	};
-	my $data = { options => [] };
-	Plugins::callHook( usage => $data );
-	if ( @{ $data->{options} } ) {
-		foreach my $plugin ( uniq sort map { $_->{plugin} || 'unknown' } @{ $data->{options} } ) {
-			$text .= "\nOptions for the '$plugin' plugin:\n";
-			foreach ( grep { $plugin eq ( $_->{plugin} || 'unknown' ) } @{ $data->{options} } ) {
-				$text .= sprintf "%-2s %-22s %s\n", $_->{short} || '', $_->{long} || '', $_->{description} || '';
-			}
-		}
-	}
-	$text =~ s/\n*$/\n/s;
 	$text =~ s/^\n//s;
 	$text =~ s/^\t\t?//gm;
 	return $text;
@@ -443,33 +428,15 @@ sub loadByHandle {
 	assert(defined $object) if DEBUG;
 
 	my $filename;
-	my $internalFilename = $object->{internalName} || $object->{name};
-
-	#hooks of type 'pre_load_' make it possible to change the filename before openkore searches for it (this filename must contain file name and file path)
-	my $pre_load = {internalFilename => $internalFilename, filename => $filename};
-	Plugins::callHook('pre_load_'.$internalFilename, $pre_load);
-	if ($pre_load->{return}) {
-		 $filename = $pre_load->{filename};
-	} elsif ($object->{autoSearch} && $object->{type} == CONTROL_FILE_TYPE) {
-		$filename = _findFileFromFolders($object->{name}, \@controlFolders);
-	} elsif ($object->{autoSearch} && $object->{type} == TABLE_FILE_TYPE) {
-		$filename = _findFileFromFolders($object->{name}, \@tablesFolders);
-	} elsif (!$object->{autoSearch}) {
+	if ($object->{autoSearch}) {
+		if ($object->{type} == CONTROL_FILE_TYPE) {
+			$filename = _findFileFromFolders($object->{name}, \@controlFolders);
+		} else {
+			$filename = _findFileFromFolders($object->{name}, \@tablesFolders);
+		}
+	} else {
 		$filename = $object->{name};
 	}
-
-	# If we should auto-create this file, do so.
-	# Prefer the default folder, which is the last folder in the list of folders.
-	if ( ( !defined( $filename ) || !-f $filename ) && $object->{createIfMissing} ) {
-		my @dirs = $object->{type} == CONTROL_FILE_TYPE ? @controlFolders : @tablesFolders;
-		my $dir = ( grep { -d $_ } @dirs )[-1];
-		my $fp;
-		if ( $dir && open $fp, '>>', "$dir/$object->{name}" ) {
-			close $fp;
-			$filename = "$dir/$object->{name}";
-		}
-	}
-
 	if (!defined($filename) || ! -f $filename) {
 		return unless $object->{mustExist};
 		
@@ -487,26 +454,12 @@ sub loadByHandle {
 		$progressHandler->($filename, $object->{type});
 	}
 
-	#hooks of type 'load_' make it possible to change file loader so plugins can change the parsing method of a file
-	#hooks of type 'pos_load_' make it possible to manipulate the extracted data after the parsing is over for a given file or simply do something when it ends.
-	my $load = {filename => $filename};
-	my $pos_load = {filename => $filename};
 	if (ref($object->{loader}) eq 'ARRAY') {
 		my @array = @{$object->{loader}};
 		my $loader = shift @array;
-		$load->{args} = \@array;
-		Plugins::callHook('load_'.$internalFilename, $load);
-		unless ($load->{return}) {
-			$loader->($filename, @array);
-		}
-		$pos_load->{args} = \@array;
-		Plugins::callHook('pos_load_'.$internalFilename, $pos_load);
+		$loader->($filename, @array);
 	} else {
-		Plugins::callHook('load_'.$internalFilename, $load);
-		unless ($load->{return}) {
-			$object->{loader}->($filename);
-		}
-		Plugins::callHook('pos_load_'.$internalFilename, $pos_load);
+		$object->{loader}->($filename);
 	}
 
 	# Call onLoaded Handler after file beeng loaded without exceptions.
@@ -585,18 +538,6 @@ sub getSVNRevision {
 	} else {
 		return;
 	}
-}
-
-##
-# int Settings::getGitRevision()
-#
-# Return OpenKore's Git revision number, or undef if that information cannot be retrieved.
-sub getGitRevision {
-    use Git;
-    my $git = Git::detect_git( $RealBin );
-    return if !$git;
-    my ( $sec, $min, $hour, $day, $month, $year ) = gmtime( $git->{timestamp} );
-    sprintf '%7.7s_%04d-%02d-%02d', $git->{sha}, $year + 1900, $month + 1, $day;
 }
 
 sub loadSysConfig {
@@ -743,7 +684,6 @@ sub _addFile {
 		type => $type,
 		name => $name,
 		mustExist  => exists($options{mustExist}) ? $options{mustExist} : 1,
-		createIfMissing => $options{createIfMissing},
 		autoSearch => exists($options{autoSearch}) ? $options{autoSearch} : 1,
 		onLoaded => exists($options{onLoaded}) ? $options{onLoaded} : undef,
 		internalName => exists($options{internalName}) ? $options{internalName} : undef,

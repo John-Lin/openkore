@@ -17,8 +17,8 @@
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
 #
-#  $Revision$
-#  $Id$
+#  $Revision: 9027 $
+#  $Id: Wx.pm 9027 2016-02-21 20:15:45Z ya4ept $
 #
 #########################################################################
 package Interface::Wx;
